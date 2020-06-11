@@ -168,14 +168,19 @@ func configureInterface(family winipcfg.AddressFamily, conf *conf.Config, tun *t
 	return nil
 }
 
-func getDefaultInterface(family winipcfg.AddressFamily, tun *tun.NativeTun) (winipcfg.LUID, error) {
+//get default net interface info (interface ID:luidDefault  gateway:NextTop  metric  )
+func getDefaultInterface(family winipcfg.AddressFamily, tun *tun.NativeTun) (winipcfg.LUID, uint32, winipcfg.RawSockaddrInet, error) {
 	r, err := winipcfg.GetIPForwardTable2(family)
 	luid := winipcfg.LUID(tun.LUID())
+	var nextTop winipcfg.RawSockaddrInet
+
 	if err != nil {
-		return luid, err
+		return luid, uint32(0), nextTop, err
 	}
+
 	lowestMetric := ^uint32(0)      // Zero is "unspecified", which for IP_UNICAST_IF resets the value, which is what we want.
 	luidDefault := winipcfg.LUID(0) // Hopefully luid zero is unspecified, but hard to find docs saying so.
+
 	for i := range r {
 		if r[i].DestinationPrefix.PrefixLength != 0 || r[i].InterfaceLUID == luid {
 			continue
@@ -187,15 +192,19 @@ func getDefaultInterface(family winipcfg.AddressFamily, tun *tun.NativeTun) (win
 		if r[i].Metric < lowestMetric {
 			lowestMetric = r[i].Metric
 			luidDefault = r[i].InterfaceLUID
+			nextTop = r[i].NextHop
 		}
 	}
-	return luidDefault, nil
+	//setting route tables needs these paramters
+	return luidDefault, lowestMetric, nextTop, nil
 }
 
 func AddDefaultRoute(family winipcfg.AddressFamily, tun *tun.NativeTun, destination net.IPNet, nextHop net.IP, metric uint32) error {
 	row := &winipcfg.MibIPforwardRow2{}
 	row.Init()
-	row.InterfaceLUID, _ = getDefaultInterface(family, tun)
+	var NextTop winipcfg.RawSockaddrInet
+	row.InterfaceLUID, metric, NextTop, _ = getDefaultInterface(family, tun)
+	nextHop = NextTop.IP()
 	err := row.DestinationPrefix.SetIPNet(destination)
 	if err != nil {
 		return err
@@ -209,6 +218,7 @@ func AddDefaultRoute(family winipcfg.AddressFamily, tun *tun.NativeTun, destinat
 	if err != nil {
 		return err
 	}
+	return nil
 }
 
 func SetDefaultRoutesForFamily(family AddressFamily, tun *tun.NativeTun, routesData []*RouteData) error {
