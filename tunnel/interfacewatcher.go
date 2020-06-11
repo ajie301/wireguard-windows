@@ -113,6 +113,12 @@ func (iw *interfaceWatcher) setup(family winipcfg.AddressFamily) {
 		iw.errors <- interfaceWatcherError{services.ErrorSetNetConfig, err}
 		return
 	}
+	err = configureDefaultInterface(family, iw.conf, iw.tun)
+	if err != nil {
+		iw.errors <- interfaceWatcherError{services.ErrorSetNetConfig, err}
+		return
+	}
+
 }
 
 func watchInterface() (*interfaceWatcher, error) {

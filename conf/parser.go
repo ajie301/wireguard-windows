@@ -309,6 +309,18 @@ func FromWgQuick(s string, name string) (*Config, error) {
 					}
 					peer.AllowedIPs = append(peer.AllowedIPs, *a)
 				}
+			case "excludeips":
+				addresses, err := splitList(val)
+				if err != nil {
+					return nil, err
+				}
+				for _, address := range addresses {
+					a, err := parseIPCidr(address)
+					if err != nil {
+						return nil, err
+					}
+					peer.ExcludedIPs = append(peer.ExcludedIPs, *a)
+				}
 			case "persistentkeepalive":
 				p, err := parsePersistentKeepalive(val)
 				if err != nil {
@@ -437,6 +449,12 @@ func FromUAPI(s string, existingConfig *Config) (*Config, error) {
 					return nil, err
 				}
 				peer.AllowedIPs = append(peer.AllowedIPs, *a)
+			case "excluded_ip":
+				a, err := parseIPCidr(val)
+				if err != nil {
+					return nil, err
+				}
+				peer.ExcludedIPs = append(peer.ExcludedIPs, *a)
 			case "persistent_keepalive_interval":
 				p, err := parsePersistentKeepalive(val)
 				if err != nil {

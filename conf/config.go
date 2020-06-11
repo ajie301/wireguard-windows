@@ -52,6 +52,7 @@ type Peer struct {
 	PublicKey           Key
 	PresharedKey        Key
 	AllowedIPs          []IPCidr
+	ExcludedIPs         []IPCidr
 	Endpoint            Endpoint
 	PersistentKeepalive uint16
 
