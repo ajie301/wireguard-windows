@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"sort"
-	"winipcfg"
 
 	"golang.org/x/sys/windows"
 	"golang.zx2c4.com/wireguard/tun"
@@ -221,10 +220,7 @@ func AddDefaultRoute(family winipcfg.AddressFamily, tun *tun.NativeTun, destinat
 	return nil
 }
 
-func SetDefaultRoutesForFamily(family AddressFamily, tun *tun.NativeTun, routesData []*RouteData) error {
-	if err != nil {
-		return err
-	}
+func SetDefaultRoutesForFamily(family winipcfg.AddressFamily, tun *tun.NativeTun, routesData []*winipcfg.RouteData) error {
 	for _, rd := range routesData {
 		asV4 := rd.Destination.IP.To4()
 		if asV4 == nil && family == windows.AF_INET {
@@ -258,8 +254,6 @@ func configureDefaultInterface(family winipcfg.AddressFamily, conf *conf.Config,
 		}
 	}
 
-	foundDefault4 := false
-	foundDefault6 := false
 	for _, peer := range conf.Peers {
 		for _, excluedip := range peer.ExcludedIPs {
 			if (excluedip.Bits() == 32 && !haveV4Address) || (excluedip.Bits() == 128 && !haveV6Address) {
@@ -270,14 +264,8 @@ func configureDefaultInterface(family winipcfg.AddressFamily, conf *conf.Config,
 				Metric:      0,
 			}
 			if excluedip.Bits() == 32 {
-				if excluedip.Cidr == 0 {
-					foundDefault4 = true
-				}
 				route.NextHop = net.IPv4zero
 			} else if excluedip.Bits() == 128 {
-				if excluedip.Cidr == 0 {
-					foundDefault6 = true
-				}
 				route.NextHop = net.IPv6zero
 			}
 			routes = append(routes, route)
@@ -301,7 +289,7 @@ func configureDefaultInterface(family winipcfg.AddressFamily, conf *conf.Config,
 		deduplicatedRoutes = append(deduplicatedRoutes, &routes[i])
 	}
 
-	err = SetDefaultRoutesForFamily(family, tun, deduplicatedRoutes)
+	err := SetDefaultRoutesForFamily(family, tun, deduplicatedRoutes)
 	if err != nil {
 		return nil
 	}
