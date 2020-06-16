@@ -19,6 +19,8 @@ import (
 	"golang.zx2c4.com/wireguard/windows/tunnel/winipcfg"
 )
 
+var excludued_ip_route_set []winipcfg.MibIPforwardRow2
+
 func cleanupAddressesOnDisconnectedInterfaces(family winipcfg.AddressFamily, addresses []net.IPNet) {
 	if len(addresses) == 0 {
 		return
@@ -213,10 +215,24 @@ func AddDefaultRoute(family winipcfg.AddressFamily, tun *tun.NativeTun, destinat
 		return err
 	}
 	row.Metric = metric
+	// record the excluded ip route table to delete when loginning out
+	excludued_ip_route_set = append(excludued_ip_route_set, *row)
 	err = winipcfg.CreateDefaultRoute(row)
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func DeleteDefaultRoute() error {
+	for _, row := range excludued_ip_route_set {
+		err := winipcfg.DeleteDefaultRoute(&row)
+		if err != nil {
+		    excludued_ip_route_set = excludued_ip_route_set[:0]
+			return err
+		}
+	}
+	excludued_ip_route_set = excludued_ip_route_set[:0]
 	return nil
 }
 

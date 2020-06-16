@@ -941,6 +941,10 @@ func CreateDefaultRoute(row *MibIPforwardRow2) error {
 	return createIPForwardEntry2(row)
 }
 
+func DeleteDefaultRoute(row *MibIPforwardRow2) error {
+	return deleteIPForwardEntry2(row)
+}
+
 // Delete method deletes an IP route entry on the local computer.
 // https://docs.microsoft.com/en-us/windows/desktop/api/netioapi/nf-netioapi-deleteipforwardentry2
 func (row *MibIPforwardRow2) Delete() error {
