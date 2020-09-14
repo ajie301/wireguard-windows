@@ -113,6 +113,12 @@ func configureInterface(family winipcfg.AddressFamily, conf *conf.Config, tun *t
 		return err
 	}
 
+	// 把设置dns放到前面，防止后面的非关键步骤出错跳过dns设置
+	err = luid.SetDNSForFamily(family, conf.Interface.DNS)
+	if err != nil {
+		return err
+	}
+
 	deduplicatedRoutes := make([]*winipcfg.RouteData, 0, len(routes))
 	sort.Slice(routes, func(i, j int) bool {
 		return routes[i].Metric < routes[j].Metric ||
@@ -157,11 +163,6 @@ func configureInterface(family winipcfg.AddressFamily, conf *conf.Config, tun *t
 		ipif.RouterDiscoveryBehavior = winipcfg.RouterDiscoveryDisabled
 	}
 	err = ipif.Set()
-	if err != nil {
-		return err
-	}
-
-	err = luid.SetDNSForFamily(family, conf.Interface.DNS)
 	if err != nil {
 		return err
 	}
@@ -228,7 +229,7 @@ func DeleteDefaultRoute() error {
 	for _, row := range excludued_ip_route_set {
 		err := winipcfg.DeleteDefaultRoute(&row)
 		if err != nil {
-		    excludued_ip_route_set = excludued_ip_route_set[:0]
+			excludued_ip_route_set = excludued_ip_route_set[:0]
 			return err
 		}
 	}
