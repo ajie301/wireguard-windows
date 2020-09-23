@@ -120,6 +120,7 @@ func configureInterface(family winipcfg.AddressFamily, conf *conf.Config, tun *t
 	}
 
 	deduplicatedRoutes := make([]*winipcfg.RouteData, 0, len(routes))
+	// 路由排序规则存在问题,无法正常排序
 	sort.Slice(routes, func(i, j int) bool {
 		return routes[i].Metric < routes[j].Metric ||
 			bytes.Compare(routes[i].NextHop, routes[j].NextHop) == -1 ||

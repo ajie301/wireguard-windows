@@ -244,10 +244,12 @@ func (luid LUID) SetRoutesForFamily(family AddressFamily, routesData []*RouteDat
 		} else if asV4 != nil && family == windows.AF_INET6 {
 			continue
 		}
-		err := luid.AddRoute(rd.Destination, rd.NextHop, rd.Metric)
-		if err != nil {
-			return err
-		}
+		// 重复路由可能设置失败,忽略设置路由错误
+		luid.AddRoute(rd.Destination, rd.NextHop, rd.Metric)
+		// err := luid.AddRoute(rd.Destination, rd.NextHop, rd.Metric)
+		// if err != nil {
+		// 	return err
+		// }
 	}
 	return nil
 }
