@@ -114,9 +114,14 @@ func configureInterface(family winipcfg.AddressFamily, conf *conf.Config, tun *t
 	}
 
 	// 把设置dns放到前面，防止后面的非关键步骤出错跳过dns设置
-	err = luid.SetDNSForFamily(family, conf.Interface.DNS)
-	if err != nil {
-		return err
+	log.Printf("Set DNS %v", conf.Interface.DNS)
+	if len(conf.Interface.DNS) != 0 {
+		err = luid.SetDNSForFamily(family, conf.Interface.DNS)
+		if err != nil {
+			log.Printf("Set DNS err: %v", err)
+			// 忽略DNS设置错误
+			// return err
+		}
 	}
 
 	deduplicatedRoutes := make([]*winipcfg.RouteData, 0, len(routes))
@@ -137,8 +142,10 @@ func configureInterface(family winipcfg.AddressFamily, conf *conf.Config, tun *t
 		deduplicatedRoutes = append(deduplicatedRoutes, &routes[i])
 	}
 
+	log.Printf("Set RouteTable")
 	err = luid.SetRoutesForFamily(family, deduplicatedRoutes)
 	if err != nil {
+		log.Printf("Set RouteTable err: %v", err)
 		return nil
 	}
 
@@ -163,8 +170,10 @@ func configureInterface(family winipcfg.AddressFamily, conf *conf.Config, tun *t
 		ipif.DadTransmits = 0
 		ipif.RouterDiscoveryBehavior = winipcfg.RouterDiscoveryDisabled
 	}
+	log.Printf("Set MTU %d", conf.Interface.MTU)
 	err = ipif.Set()
 	if err != nil {
+		log.Printf("Set MTU err: %v", err)
 		return err
 	}
 

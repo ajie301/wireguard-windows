@@ -152,6 +152,11 @@ func (iw *interfaceWatcher) Configure(device *device.Device, conf *conf.Config, 
 	iw.setupMutex.Lock()
 	defer iw.setupMutex.Unlock()
 
+	// file, err := os.OpenFile("wg-windows.log", os.O_RDWR|os.O_CREATE, os.ModePerm)
+	// if err == nil {
+	// 	log.SetFlags(log.Ldate)
+	// 	log.SetOutput(file)
+	// }
 	iw.device, iw.conf, iw.tun = device, conf, tun
 	for _, event := range iw.storedEvents {
 		if event.luid == winipcfg.LUID(iw.tun.LUID()) {
