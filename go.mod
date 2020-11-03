@@ -1,6 +1,7 @@
 module golang.zx2c4.com/wireguard/windows
 
 require (
+	github.com/go-ole/go-ole v1.2.4
 	github.com/lxn/walk v0.0.0-20191128110447-55ccb3a9f5c1
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413

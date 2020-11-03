@@ -6,9 +6,12 @@
 package winipcfg
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
+	"github.com/go-ole/go-ole"
+	"github.com/go-ole/go-ole/oleutil"
 	"golang.org/x/sys/windows"
 )
 
@@ -426,5 +429,76 @@ func (luid LUID) SetDNSForFamily(family AddressFamily, dnses []net.IP) error {
 			cmds = append(cmds, fmt.Sprintf(netshCmdTemplateAdd6, ipif.InterfaceIndex, v6.String()))
 		}
 	}
-	return runNetsh(cmds)
+	err = runNetsh(cmds)
+	// netsh 设置失败使用wmi再次尝试
+	if err != nil {
+		param := []string{}
+		for i := 0; i < len(dnses); i++ {
+			param = append(param, dnses[i].String())
+		}
+		return wmisetdns(int(ipif.InterfaceIndex), param...)
+	}
+	return err
+}
+
+func wmisetdns(interface_id int, dns ...string) (err error) {
+	err = ole.CoInitialize(0)
+	if err != nil {
+		return
+	}
+	defer ole.CoUninitialize()
+	unknown, err := oleutil.CreateObject("WbemScripting.SWbemLocator")
+	if err != nil {
+		return
+	}
+	wmi, err := unknown.QueryInterface(ole.IID_IDispatch)
+	if err != nil {
+		return
+	}
+	defer wmi.Release()
+	var oleval *ole.VARIANT
+	oleval, err = oleutil.CallMethod(wmi, "ConnectServer")
+	service := oleval.ToIDispatch()
+	if service == nil {
+		err = errors.New("Convert Failed")
+		return
+	}
+	defer service.Release()
+	oleval, err = oleutil.CallMethod(service, "ExecQuery", "SELECT * FROM Win32_NetworkAdapterConfiguration")
+	if err != nil {
+		return
+	}
+	res_array := oleval.ToIDispatch()
+	if res_array == nil {
+		err = errors.New("Convert Failed")
+		return
+	}
+	defer res_array.Release()
+	oleval, err = oleutil.GetProperty(res_array, "Count")
+	if err != nil {
+		return
+	}
+	count := int(oleval.Val)
+	for i := 0; i < count; i++ {
+		oleval, err = oleutil.CallMethod(res_array, "ItemIndex", i)
+		if err != nil {
+			return
+		}
+		item := oleval.ToIDispatch()
+		oleval, err = oleutil.GetProperty(item, "InterfaceIndex")
+		if err != nil {
+			return
+		}
+		if int(oleval.Val) == interface_id {
+			oleval, err = oleutil.CallMethod(item, "SetDNSServerSearchOrder", dns)
+			if err != nil {
+				return
+			}
+			if oleval.Val != 0 {
+				err = fmt.Errorf("SetDNSServerSearchOrder return %d", oleval.Val)
+				return
+			}
+		}
+	}
+	return
 }
