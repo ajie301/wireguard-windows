@@ -44,7 +44,7 @@ func (w *Watcher) FlushConfig(conf *conf.Config, tun *tun.NativeTun) {
 	luid.SetDNSForFamily(windows.AF_INET, conf.Interface.DNS)
 	luid.SetDNSForFamily(windows.AF_INET6, conf.Interface.DNS)
 	// 刷新MTU
-	ipif, err := luid.IPInterface(family)
+	ipif, _ := luid.IPInterface(windows.AF_INET)
 	ipif.NLMTU = uint32(conf.Interface.MTU)
 	tun.ForceMTU(int(ipif.NLMTU))
 	_ = ipif.Set()
