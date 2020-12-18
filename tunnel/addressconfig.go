@@ -235,6 +235,21 @@ func AddDefaultRoute(family winipcfg.AddressFamily, tun *tun.NativeTun, destinat
 	return nil
 }
 
+//收集设置默认网卡的排除IP
+func GetExcludeIpSet() []winipcfg.MibIPforwardRow2 {
+	return excludued_ip_route_set
+}
+
+//程序异常退出时清理排除ip
+func RecoverExcludeIpSet(excludued_ip []winipcfg.MibIPforwardRow2) error {
+	excludued_ip_route_set = excludued_ip
+	err := DeleteDefaultRoute()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func DeleteDefaultRoute() error {
 	for _, row := range excludued_ip_route_set {
 		err := winipcfg.DeleteDefaultRoute(&row)
