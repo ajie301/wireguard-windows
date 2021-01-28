@@ -122,6 +122,15 @@ func (w *Watcher) FlushConfig(conf *conf.Config, tun *tun.NativeTun) {
 			haveV6Address = true
 		}
 	}
+	// 刷新网卡的自身ip地址
+	err := luid.SetIPAddressesForFamily(windows.AF_INET, addresses)
+	if err == windows.ERROR_OBJECT_ALREADY_EXISTS {
+		cleanupAddressesOnDisconnectedInterfaces(windows.AF_INET, addresses)
+		err = luid.SetIPAddressesForFamily(windows.AF_INET, addresses)
+	}
+	if err != nil {
+		return
+	}
 	//取出排除ip项构造设置路由表的数据
 	for _, peer := range conf.Peers {
 		for _, excluedip := range peer.ExcludedIPs {

@@ -29,7 +29,7 @@ type interfaceWatcherEvent struct {
 	family winipcfg.AddressFamily
 }
 type interfaceWatcher struct {
-	errors chan interfaceWatcherError
+	errors chan interfaceWatcherError // TODO:errors 在enterlite中没有处理，导致超过缓冲区会卡死
 
 	device *device.Device
 	conf   *conf.Config
@@ -110,6 +110,7 @@ func (iw *interfaceWatcher) setup(family winipcfg.AddressFamily) {
 	log.Printf("Setting device %s addresses", ipversion)
 	err = configureInterface(family, iw.conf, iw.tun)
 	if err != nil {
+		// TODO: errors 缓冲区满时会卡死
 		iw.errors <- interfaceWatcherError{services.ErrorSetNetConfig, err}
 		return
 	}
@@ -131,6 +132,24 @@ func watchInterface() (*interfaceWatcher, error) {
 		defer iw.setupMutex.Unlock()
 
 		if notificationType != winipcfg.MibAddInstance {
+			// 重用一个已经存在的网卡时引发问题：无法触发MibAddInstance消息
+			// 尝试在notificationType不是MibAddInstance时，收集iface.InterfaceLUID, iface.Family
+			// 不过该方法不可靠，win10可以收集到，win7不行，统一采用方案：
+			// iw.setup(windows.AF_INET) and iw.setup(windows.AF_INET6),见Configure方法逻辑
+			/*if iw.tun != nil {
+				return
+			}
+			finded := false
+			for _, item := range iw.storedEvents {
+				if item.luid == iface.InterfaceLUID && item.family == iface.Family {
+					finded = true
+					break
+				}
+			}
+			if !finded {
+				logout("----","add [luid:%v, family:%v]", iface.InterfaceLUID, iface.Family)
+				iw.storedEvents = append(iw.storedEvents, interfaceWatcherEvent{iface.InterfaceLUID, iface.Family})
+			}*/
 			return
 		}
 		if iw.tun == nil {
@@ -158,10 +177,16 @@ func (iw *interfaceWatcher) Configure(device *device.Device, conf *conf.Config, 
 	// 	log.SetOutput(file)
 	// }
 	iw.device, iw.conf, iw.tun = device, conf, tun
-	for _, event := range iw.storedEvents {
-		if event.luid == winipcfg.LUID(iw.tun.LUID()) {
-			iw.setup(event.family)
+	if len(iw.storedEvents) > 0 {
+		for _, event := range iw.storedEvents {
+			if event.luid == winipcfg.LUID(iw.tun.LUID()) {
+				iw.setup(event.family)
+			}
 		}
+	} else {
+		// 如果iw.storedEvents为空，则指定默认下方操作，完成配置相应的信息
+		iw.setup(windows.AF_INET)
+		iw.setup(windows.AF_INET6)
 	}
 	iw.storedEvents = nil
 }
